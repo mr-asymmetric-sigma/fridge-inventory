@@ -1,3 +1,5 @@
+console.log('app.js loaded')
+
 let state = null
 let collapsed = {}
 let addMode = 'rs'
@@ -186,4 +188,4 @@ document.addEventListener('touchend', e => {
 load()
 setInterval(load, 30000)
 
-console.log('app.js loaded')
+console.log('app.js finished')
