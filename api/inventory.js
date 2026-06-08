@@ -1,4 +1,9 @@
-import { kv } from '@upstash/redis'
+import { Redis } from '@upstash/redis'
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+})
 
 const DEFAULT_SECTIONS = [
   {id:'s1', title:'冻库上层', items:[
@@ -32,25 +37,24 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
 
   if (req.method === 'GET') {
-    let data = await kv.get('fridge_data')
+    let data = await redis.get('fridge_data')
     if (!data) {
       data = { sections: DEFAULT_SECTIONS, logs: [] }
-      await kv.set('fridge_data', data)
+      await redis.set('fridge_data', data)
     }
     return res.json(data)
   }
 
   if (req.method === 'POST') {
     const { action, payload } = req.body
-    let data = await kv.get('fridge_data')
+    let data = await redis.get('fridge_data')
     if (!data) data = { sections: DEFAULT_SECTIONS, logs: [] }
 
     if (action === 'decrement') {
       const { sid, iid } = payload
       const sec = data.sections.find(s => s.id === sid)
-      if (!sec) return res.status(404).json({ error: 'section not found' })
-      const it = sec.items.find(i => i.id === iid)
-      if (!it) return res.status(404).json({ error: 'item not found' })
+      const it = sec?.items.find(i => i.id === iid)
+      if (!it) return res.status(404).json({ error: 'not found' })
       const step = it.qty >= 1 ? 1 : 0.5
       it.qty = Math.max(0, parseFloat((it.qty - step).toFixed(2)))
       data.logs.unshift({ name: it.name, qty: it.qty, type: 'use', time: Date.now() })
@@ -61,7 +65,7 @@ export default async function handler(req, res) {
       const { sid, iid, qty } = payload
       const sec = data.sections.find(s => s.id === sid)
       const it = sec?.items.find(i => i.id === iid)
-      if (!it) return res.status(404).json({ error: 'item not found' })
+      if (!it) return res.status(404).json({ error: 'not found' })
       it.qty = parseFloat((it.qty + qty).toFixed(2))
       data.logs.unshift({ name: it.name, qty: it.qty, added: qty, type: 'add', time: Date.now() })
       if (data.logs.length > 80) data.logs = data.logs.slice(0, 80)
@@ -71,13 +75,12 @@ export default async function handler(req, res) {
       const { sid, name, qty, unit } = payload
       const sec = data.sections.find(s => s.id === sid)
       if (!sec) return res.status(404).json({ error: 'section not found' })
-      const newId = 'c' + Date.now()
-      sec.items.push({ id: newId, name, qty, unit })
+      sec.items.push({ id: 'c' + Date.now(), name, qty, unit })
       data.logs.unshift({ name, qty, added: qty, type: 'add', time: Date.now() })
       if (data.logs.length > 80) data.logs = data.logs.slice(0, 80)
     }
 
-    await kv.set('fridge_data', data)
+    await redis.set('fridge_data', data)
     return res.json(data)
   }
 
