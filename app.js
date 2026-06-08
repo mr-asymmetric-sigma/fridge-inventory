@@ -185,3 +185,5 @@ document.addEventListener('touchend', e => {
 
 load()
 setInterval(load, 30000)
+
+console.log('app.js loaded')
