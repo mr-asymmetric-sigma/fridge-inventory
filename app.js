@@ -1,4 +1,4 @@
-console.log('app.js loaded')
+console.log('app.js loaded aaa')
 
 let state = null
 let collapsed = {}
