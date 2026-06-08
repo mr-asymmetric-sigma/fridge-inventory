@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv'
+import { kv } from '@upstash/redis'
 
 const DEFAULT_SECTIONS = [
   {id:'s1', title:'冻库上层', items:[
