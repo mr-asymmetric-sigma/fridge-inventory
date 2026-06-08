@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>冰箱库存</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#fff;--bg2:#f5f5f5;--bg3:#e8e8e8;
+  --text:#1a1a1a;--text2:#666;--text3:#999;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+  --red:#a32d2d;--red-bg:#fcebeb;--red-bd:rgba(163,45,45,0.25);
+  --green:#3b6d11;--green-bg:#eaf3de;--green-bd:rgba(59,109,17,0.25);
+  --blue:#185fa5;--blue-bg:#e6f1fb;--blue-bd:rgba(24,95,165,0.25);
+  --r:16px;--rs:10px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1c1c1e;--bg2:#2c2c2e;--bg3:#3a3a3c;
+  --text:#f0f0f0;--text2:#aaa;--text3:#666;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+  --red:#f09595;--red-bg:#3a1515;--red-bd:rgba(240,149,149,0.25);
+  --green:#97c459;--green-bg:#1a3a0a;--green-bd:rgba(151,196,89,0.25);
+  --blue:#85b7eb;--blue-bg:#0a2540;--blue-bd:rgba(133,183,235,0.25);
+}}
+body{font-family:-apple-system,'PingFang SC','Helvetica Neue',sans-serif;background:var(--bg2);color:var(--text);min-height:100vh;}
+
+/* TOPBAR */
+.topbar{background:var(--bg);border-bottom:0.5px solid var(--border);padding:env(safe-area-inset-top,0) 0 0;position:sticky;top:0;z-index:100;}
+.topbar-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 12px;}
+.topbar-left h1{font-size:17px;font-weight:600;color:var(--text);}
+.topbar-sub{font-size:12px;color:var(--text3);margin-top:1px;}
+.topbar-btn{background:var(--bg2);color:var(--text2);border:0.5px solid var(--border2);border-radius:20px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;}
+
+/* CONTENT */
+.content{padding:8px 14px 120px;max-width:520px;margin:0 auto;}
+
+/* SECTION */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 4px 10px;cursor:pointer;user-select:none;}
+.sec-title{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.sec-empty-badge{font-size:11px;color:var(--red);font-weight:600;}
+.sec-arrow{font-size:13px;color:var(--text3);transition:transform .2s;}
+.sec-arrow.col{transform:rotate(-90deg);}
+
+/* ITEM LIST */
+.item-list{background:var(--bg);border-radius:var(--r);overflow:hidden;border:0.5px solid var(--border);}
+.item-row{display:flex;align-items:center;padding:14px 16px;border-bottom:0.5px solid var(--border);gap:12px;transition:background .15s;}
+.item-row:last-child{border-bottom:none;}
+.item-row.empty{background:var(--red-bg);}
+.item-info{flex:1;min-width:0;}
+.item-name{font-size:15px;font-weight:500;color:var(--text);line-height:1.2;}
+.item-row.empty .item-name{color:var(--red);}
+.empty-label{font-size:11px;color:var(--red);font-weight:500;margin-top:3px;}
+.item-ctrl{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.qty-val{font-size:19px;font-weight:600;min-width:34px;text-align:right;color:var(--text);}
+.item-row.empty .qty-val{color:var(--red);}
+.qty-unit{font-size:12px;color:var(--text3);min-width:20px;}
+.btn-minus{width:40px;height:40px;border-radius:50%;border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .1s,background .1s;flex-shrink:0;line-height:1;}
+.btn-minus:active{transform:scale(.86);background:var(--bg3);}
+.btn-minus.disabled{opacity:.22;pointer-events:none;}
+
+/* FAB */
+.fab{position:fixed;bottom:calc(28px + env(safe-area-inset-bottom,0px));right:22px;width:60px;height:60px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:200;box-shadow:0 4px 20px rgba(24,95,165,.4);transition:transform .15s;}
+.fab:active{transform:scale(.9);}
+
+/* SPINNER */
+.spinner-wrap{display:flex;justify-content:center;padding:60px 0;}
+.spinner{width:28px;height:28px;border:2.5px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* TOAST */
+.toast{position:fixed;bottom:110px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(0,0,0,.75);color:#fff;padding:9px 20px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;z-index:500;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* OVERLAY / BOTTOM SHEET */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:flex-end;justify-content:center;}
+.overlay.open{display:flex;}
+.sheet{background:var(--bg);border-radius:22px 22px 0 0;padding:22px 20px calc(32px + env(safe-area-inset-bottom,0px));width:100%;max-width:520px;max-height:90vh;overflow-y:auto;}
+.sheet-title{font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.sheet-close{background:var(--bg2);border:none;border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);flex-shrink:0;}
+
+/* TABS */
+.tabs{display:flex;gap:10px;margin-bottom:18px;}
+.tab{flex:1;text-align:center;padding:10px;border-radius:var(--rs);background:var(--bg2);border:0.5px solid var(--border2);font-size:14px;color:var(--text2);font-weight:500;cursor:pointer;}
+.tab.act{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-bd);}
+
+/* FORM */
+.flabel{font-size:13px;color:var(--text2);margin-bottom:8px;}
+.fgrp{margin-bottom:16px;}
+.inp{width:100%;padding:12px 14px;border-radius:var(--rs);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);font-size:15px;outline:none;-webkit-appearance:none;appearance:none;}
+.inp:focus{border-color:var(--blue);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.sel-wrap{position:relative;}
+.sel-wrap select{width:100%;padding:12px 36px 12px 14px;border-radius:var(--rs);border:0.5px solid var(--border2);background:var(--bg2);color:var(--text);font-size:15px;outline:none;-webkit-appearance:none;appearance:none;cursor:pointer;}
+.sel-wrap::after{content:'›';position:absolute;right:14px;top:50%;transform:translateY(-50%) rotate(90deg);color:var(--text3);pointer-events:none;font-size:16px;}
+.btn-sub{width:100%;padding:15px;background:var(--blue);color:#fff;border:none;border-radius:var(--rs);font-size:15px;font-weight:600;cursor:pointer;margin-top:6px;transition:opacity .15s;}
+.btn-sub:active{opacity:.8;}
+.btn-sub:disabled{opacity:.5;cursor:not-allowed;}
+
+/* LOG */
+.log-list{background:var(--bg);border-radius:var(--r);overflow:hidden;border:0.5px solid var(--border);}
+.log-row{display:flex;align-items:center;padding:12px 16px;border-bottom:0.5px solid var(--border);gap:10px;}
+.log-row:last-child{border-bottom:none;}
+.log-name{flex:1;font-size:14px;font-weight:500;color:var(--text);}
+.log-badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;white-space:nowrap;}
+.log-badge.use{background:var(--red-bg);color:var(--red);}
+.log-badge.add{background:var(--green-bg);color:var(--green);}
+.log-meta{text-align:right;flex-shrink:0;}
+.log-remain{font-size:13px;color:var(--text2);}
+.log-time{font-size:11px;color:var(--text3);margin-top:2px;}
+.empty-tip{text-align:center;padding:48px;font-size:14px;color:var(--text3);}
+
+/* PULL HINT */
+.pull-hint{text-align:center;font-size:12px;color:var(--text3);padding:10px 0 0;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-left">
+      <h1>❄️ 冰箱库存</h1>
+      <div class="topbar-sub" id="stats-text">加载中…</div>
+    </div>
+    <button class="topbar-btn" onclick="openLog()">操作记录</button>
+  </div>
+</div>
+
+<div class="content" id="main"></div>
+
+<button class="fab" onclick="openAdd()" aria-label="添加补货">＋</button>
+<div class="toast" id="toast"></div>
+
+<!-- ADD SHEET -->
+<div class="overlay" id="ov-add">
+  <div class="sheet">
+    <div class="sheet-title">添加 / 补货 <button class="sheet-close" onclick="closeSheet('add')">✕</button></div>
+    <div class="tabs">
+      <div class="tab act" id="tab-rs" onclick="setMode('rs')">现有物品补货</div>
+      <div class="tab" id="tab-nw" onclick="setMode('nw')">添加新物品</div>
+    </div>
+    <div id="form-rs">
+      <div class="fgrp">
+        <div class="flabel">选择物品</div>
+        <div class="sel-wrap"><select id="sel-item"></select></div>
+      </div>
+      <div class="fgrp">
+        <div class="flabel">补货数量</div>
+        <input class="inp" type="number" id="inp-rsqty" value="1" min="0.1" step="0.5" inputmode="decimal">
+      </div>
+      <button class="btn-sub" id="btn-rs" onclick="doRestock()">确认补货</button>
+    </div>
+    <div id="form-nw" style="display:none">
+      <div class="fgrp">
+        <div class="flabel">物品名称</div>
+        <input class="inp" type="text" id="inp-name" placeholder="例：猪里脊">
+      </div>
+      <div class="row2">
+        <div class="fgrp">
+          <div class="flabel">数量</div>
+          <input class="inp" type="number" id="inp-nwqty" value="1" min="0" step="0.5" inputmode="decimal">
+        </div>
+        <div class="fgrp">
+          <div class="flabel">单位</div>
+          <input class="inp" type="text" id="inp-unit" placeholder="包/块/个…">
+        </div>
+      </div>
+      <div class="fgrp">
+        <div class="flabel">存放区域</div>
+        <div class="sel-wrap"><select id="sel-sec"></select></div>
+      </div>
+      <button class="btn-sub" id="btn-nw" onclick="doAddNew()">添加物品</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG SHEET -->
+<div class="overlay" id="ov-log">
+  <div class="sheet">
+    <div class="sheet-title">操作记录 <button class="sheet-close" onclick="closeSheet('log')">✕</button></div>
+    <div id="log-body"></div>
+  </div>
+</div>
+
+<script>
+let state = null
+let collapsed = {}
+let addMode = 'rs'
+let busy = false
+
+function fq(q) { return Number.isInteger(q) ? q : parseFloat(parseFloat(q).toFixed(2)) }
+function ft(ts) {
+  const d = new Date(ts)
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+async function api(method, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } }
+  if (body) opts.body = JSON.stringify(body)
+  const r = await fetch('/api/inventory', opts)
+  if (!r.ok) throw new Error('API error ' + r.status)
+  return r.json()
+}
+
+async function load() {
+  try {
+    state = await api('GET')
+    collapsed = state.collapsed || {}
+    render()
+  } catch(e) {
+    document.getElementById('main').innerHTML = '<div class="empty-tip">加载失败，请刷新页面重试</div>'
+    document.getElementById('stats-text').textContent = ''
+  }
+}
+
+async function post(action, payload) {
+  if (busy) return
+  busy = true
+  try {
+    state = await api('POST', { action, payload })
+    render()
+  } catch(e) {
+    showToast('操作失败，请重试')
+  }
+  busy = false
+}
+
+function render() {
+  if (!state) return
+  const all = state.sections.flatMap(s => s.items)
+  const ec = all.filter(i => i.qty <= 0).length
+  document.getElementById('stats-text').textContent = ec > 0 ? `共${all.length}件，${ec}件已用完` : `共${all.length}件`
+
+  document.getElementById('main').innerHTML = state.sections.map(sec => {
+    const isCol = !!collapsed[sec.id]
+    const emptyC = sec.items.filter(i => i.qty <= 0).length
+    const rows = isCol ? '' : `<div class="item-list">${sec.items.map(it => {
+      const emp = it.qty <= 0
+      return `<div class="item-row${emp?' empty':''}">
+        <div class="item-info">
+          <div class="item-name">${it.name}</div>
+          ${emp ? '<div class="empty-label">已用完</div>' : ''}
+        </div>
+        <div class="item-ctrl">
+          <span class="qty-val">${fq(it.qty)}</span>
+          <span class="qty-unit">${it.unit}</span>
+          <div class="btn-minus${emp?' disabled':''}" onclick="${emp?'':``dec('${sec.id}','${it.id}')``}" role="button" aria-label="减少${it.name}">−</div>
+        </div>
+      </div>`
+    }).join('')}</div>`
+
+    return `<div>
+      <div class="sec-hdr" onclick="togSec('${sec.id}')">
+        <div class="sec-title">${sec.title}${emptyC > 0 ? `<span class="sec-empty-badge">${emptyC}件空</span>` : ''}</div>
+        <span class="sec-arrow${isCol?' col':''}">▾</span>
+      </div>${rows}
+    </div>`
+  }).join('') + '<div class="pull-hint">下拉刷新获取最新数据</div>'
+}
+
+function dec(sid, iid) { post('decrement', { sid, iid }) }
+
+function togSec(sid) {
+  collapsed[sid] = !collapsed[sid]
+  render()
+}
+
+function openAdd() {
+  const sel = document.getElementById('sel-item')
+  sel.innerHTML = ''
+  if (state) {
+    state.sections.forEach(sec => {
+      const og = document.createElement('optgroup')
+      og.label = sec.title
+      sec.items.forEach(it => {
+        const o = document.createElement('option')
+        o.value = JSON.stringify({ sid: sec.id, iid: it.id })
+        o.textContent = `${it.name} (${it.unit})  现有:${fq(it.qty)}`
+        og.appendChild(o)
+      })
+      sel.appendChild(og)
+    })
+    const ss = document.getElementById('sel-sec')
+    ss.innerHTML = state.sections.map(s => `<option value="${s.id}">${s.title}</option>`).join('')
+  }
+  document.getElementById('ov-add').classList.add('open')
+}
+
+function openLog() {
+  const el = document.getElementById('log-body')
+  if (!state || !state.logs || !state.logs.length) {
+    el.innerHTML = '<div class="empty-tip">暂无操作记录</div>'
+  } else {
+    el.innerHTML = '<div class="log-list">' + state.logs.slice(0, 60).map(l => {
+      const badge = l.type === 'add'
+        ? `<span class="log-badge add">+${fq(l.added || l.qty)}</span>`
+        : `<span class="log-badge use">取用</span>`
+      return `<div class="log-row">
+        <span class="log-name">${l.name}</span>
+        ${badge}
+        <div class="log-meta">
+          <div class="log-remain">剩 ${fq(l.qty)}</div>
+          <div class="log-time">${ft(l.time)}</div>
+        </div>
+      </div>`
+    }).join('') + '</div>'
+  }
+  document.getElementById('ov-log').classList.add('open')
+}
+
+function closeSheet(t) { document.getElementById('ov-' + t).classList.remove('open') }
+
+function setMode(m) {
+  addMode = m
+  document.getElementById('tab-rs').className = 'tab' + (m === 'rs' ? ' act' : '')
+  document.getElementById('tab-nw').className = 'tab' + (m === 'nw' ? ' act' : '')
+  document.getElementById('form-rs').style.display = m === 'rs' ? '' : 'none'
+  document.getElementById('form-nw').style.display = m === 'nw' ? '' : 'none'
+}
+
+async function doRestock() {
+  const raw = document.getElementById('sel-item').value
+  if (!raw) return
+  const { sid, iid } = JSON.parse(raw)
+  const qty = parseFloat(document.getElementById('inp-rsqty').value)
+  if (isNaN(qty) || qty <= 0) { showToast('请填写正确数量'); return }
+  const btn = document.getElementById('btn-rs')
+  btn.disabled = true; btn.textContent = '保存中…'
+  await post('restock', { sid, iid, qty })
+  btn.disabled = false; btn.textContent = '确认补货'
+  showToast('补货成功 ✓')
+  closeSheet('add')
+}
+
+async function doAddNew() {
+  const name = document.getElementById('inp-name').value.trim()
+  const qty = parseFloat(document.getElementById('inp-nwqty').value) || 0
+  const unit = document.getElementById('inp-unit').value.trim() || '个'
+  const sid = document.getElementById('sel-sec').value
+  if (!name) { showToast('请填写物品名称'); return }
+  const btn = document.getElementById('btn-nw')
+  btn.disabled = true; btn.textContent = '保存中…'
+  await post('add_item', { sid, name, qty, unit })
+  btn.disabled = false; btn.textContent = '添加物品'
+  showToast('添加成功 ✓')
+  closeSheet('add')
+  document.getElementById('inp-name').value = ''
+  document.getElementById('inp-nwqty').value = '1'
+  document.getElementById('inp-unit').value = ''
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 2000)
+}
+
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open') })
+})
+
+// Pull-to-refresh on mobile
+let startY = 0
+document.addEventListener('touchstart', e => { startY = e.touches[0].clientY }, { passive: true })
+document.addEventListener('touchend', e => {
+  const dy = e.changedTouches[0].clientY - startY
+  if (dy > 80 && window.scrollY === 0) load()
+}, { passive: true })
+
+load()
+setInterval(load, 30000)
+</script>
+</body>
+</html>
