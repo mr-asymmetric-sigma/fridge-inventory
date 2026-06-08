@@ -8,7 +8,7 @@ let busy = false
 function fq(q) { return Number.isInteger(q) ? q : parseFloat(parseFloat(q).toFixed(2)) }
 function ft(ts) {
   const d = new Date(ts)
-  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  return (d.getMonth()+1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0')
 }
 
 async function api(method, body) {
@@ -44,38 +44,49 @@ async function post(action, payload) {
 
 function render() {
   if (!state) return
-  const all = state.sections.flatMap(s => s.items)
-  const ec = all.filter(i => i.qty <= 0).length
-  document.getElementById('stats-text').textContent = ec > 0 ? `共${all.length}件，${ec}件已用完` : `共${all.length}件`
+  const all = state.sections.flatMap(function(s) { return s.items })
+  const ec = all.filter(function(i) { return i.qty <= 0 }).length
+  document.getElementById('stats-text').textContent = ec > 0 ? '共' + all.length + '件，' + ec + '件已用完' : '共' + all.length + '件'
 
-  document.getElementById('main').innerHTML = state.sections.map(sec => {
-    const isCol = !!collapsed[sec.id]
-    const emptyC = sec.items.filter(i => i.qty <= 0).length
-    const rows = isCol ? '' : `<div class="item-list">${sec.items.map(it => {
-      const emp = it.qty <= 0
-      return `<div class="item-row${emp?' empty':''}">
-        <div class="item-info">
-          <div class="item-name">${it.name}</div>
-          ${emp ? '<div class="empty-label">已用完</div>' : ''}
-        </div>
-        <div class="item-ctrl">
-          <span class="qty-val">${fq(it.qty)}</span>
-          <span class="qty-unit">${it.unit}</span>
-          <div class="btn-minus${emp?' disabled':''}" onclick="${emp?'':``dec('${sec.id}','${it.id}')``}" role="button" aria-label="减少${it.name}">−</div>
-        </div>
-      </div>`
-    }).join('')}</div>`
+  var html = ''
+  state.sections.forEach(function(sec) {
+    var isCol = !!collapsed[sec.id]
+    var emptyC = sec.items.filter(function(i) { return i.qty <= 0 }).length
+    var emptyBadge = emptyC > 0 ? '<span class="sec-empty-badge">' + emptyC + '件空</span>' : ''
+    var arrowClass = isCol ? 'sec-arrow col' : 'sec-arrow'
 
-    return `<div>
-      <div class="sec-hdr" onclick="togSec('${sec.id}')">
-        <div class="sec-title">${sec.title}${emptyC > 0 ? `<span class="sec-empty-badge">${emptyC}件空</span>` : ''}</div>
-        <span class="sec-arrow${isCol?' col':''}">▾</span>
-      </div>${rows}
-    </div>`
-  }).join('') + '<div class="pull-hint">下拉刷新获取最新数据</div>'
+    var rows = ''
+    if (!isCol) {
+      var rowsHtml = ''
+      sec.items.forEach(function(it) {
+        var emp = it.qty <= 0
+        var emptyLabel = emp ? '<div class="empty-label">已用完</div>' : ''
+        var empClass = emp ? 'item-row empty' : 'item-row'
+        var onclick = emp ? '' : 'onclick="dec(\'' + sec.id + '\',\'' + it.id + '\')"'
+        var btnClass = emp ? 'btn-minus disabled' : 'btn-minus'
+        rowsHtml += '<div class="' + empClass + '">' +
+          '<div class="item-info"><div class="item-name">' + it.name + '</div>' + emptyLabel + '</div>' +
+          '<div class="item-ctrl">' +
+          '<span class="qty-val">' + fq(it.qty) + '</span>' +
+          '<span class="qty-unit">' + it.unit + '</span>' +
+          '<div class="' + btnClass + '" ' + onclick + ' role="button" aria-label="减少' + it.name + '">−</div>' +
+          '</div></div>'
+      })
+      rows = '<div class="item-list">' + rowsHtml + '</div>'
+    }
+
+    html += '<div>' +
+      '<div class="sec-hdr" onclick="togSec(\'' + sec.id + '\')">' +
+      '<div class="sec-title">' + sec.title + emptyBadge + '</div>' +
+      '<span class="' + arrowClass + '">▾</span>' +
+      '</div>' + rows + '</div>'
+  })
+
+  html += '<div class="pull-hint">下拉刷新获取最新数据</div>'
+  document.getElementById('main').innerHTML = html
 }
 
-function dec(sid, iid) { post('decrement', { sid, iid }) }
+function dec(sid, iid) { post('decrement', { sid: sid, iid: iid }) }
 
 function togSec(sid) {
   collapsed[sid] = !collapsed[sid]
@@ -83,44 +94,48 @@ function togSec(sid) {
 }
 
 function openAdd() {
-  const sel = document.getElementById('sel-item')
+  var sel = document.getElementById('sel-item')
   sel.innerHTML = ''
   if (state) {
-    state.sections.forEach(sec => {
-      const og = document.createElement('optgroup')
+    state.sections.forEach(function(sec) {
+      var og = document.createElement('optgroup')
       og.label = sec.title
-      sec.items.forEach(it => {
-        const o = document.createElement('option')
+      sec.items.forEach(function(it) {
+        var o = document.createElement('option')
         o.value = JSON.stringify({ sid: sec.id, iid: it.id })
-        o.textContent = `${it.name} (${it.unit})  现有:${fq(it.qty)}`
+        o.textContent = it.name + ' (' + it.unit + ')  现有:' + fq(it.qty)
         og.appendChild(o)
       })
       sel.appendChild(og)
     })
-    const ss = document.getElementById('sel-sec')
-    ss.innerHTML = state.sections.map(s => `<option value="${s.id}">${s.title}</option>`).join('')
+    var ss = document.getElementById('sel-sec')
+    ss.innerHTML = state.sections.map(function(s) {
+      return '<option value="' + s.id + '">' + s.title + '</option>'
+    }).join('')
   }
   document.getElementById('ov-add').classList.add('open')
 }
 
 function openLog() {
-  const el = document.getElementById('log-body')
+  var el = document.getElementById('log-body')
   if (!state || !state.logs || !state.logs.length) {
     el.innerHTML = '<div class="empty-tip">暂无操作记录</div>'
   } else {
-    el.innerHTML = '<div class="log-list">' + state.logs.slice(0, 60).map(l => {
-      const badge = l.type === 'add'
-        ? `<span class="log-badge add">+${fq(l.added || l.qty)}</span>`
-        : `<span class="log-badge use">取用</span>`
-      return `<div class="log-row">
-        <span class="log-name">${l.name}</span>
-        ${badge}
-        <div class="log-meta">
-          <div class="log-remain">剩 ${fq(l.qty)}</div>
-          <div class="log-time">${ft(l.time)}</div>
-        </div>
-      </div>`
-    }).join('') + '</div>'
+    var html = '<div class="log-list">'
+    state.logs.slice(0, 60).forEach(function(l) {
+      var badge = l.type === 'add'
+        ? '<span class="log-badge add">+' + fq(l.added || l.qty) + '</span>'
+        : '<span class="log-badge use">取用</span>'
+      html += '<div class="log-row">' +
+        '<span class="log-name">' + l.name + '</span>' +
+        badge +
+        '<div class="log-meta">' +
+        '<div class="log-remain">剩 ' + fq(l.qty) + '</div>' +
+        '<div class="log-time">' + ft(l.time) + '</div>' +
+        '</div></div>'
+    })
+    html += '</div>'
+    el.innerHTML = html
   }
   document.getElementById('ov-log').classList.add('open')
 }
@@ -136,28 +151,28 @@ function setMode(m) {
 }
 
 async function doRestock() {
-  const raw = document.getElementById('sel-item').value
+  var raw = document.getElementById('sel-item').value
   if (!raw) return
-  const { sid, iid } = JSON.parse(raw)
-  const qty = parseFloat(document.getElementById('inp-rsqty').value)
+  var ref = JSON.parse(raw)
+  var qty = parseFloat(document.getElementById('inp-rsqty').value)
   if (isNaN(qty) || qty <= 0) { showToast('请填写正确数量'); return }
-  const btn = document.getElementById('btn-rs')
+  var btn = document.getElementById('btn-rs')
   btn.disabled = true; btn.textContent = '保存中…'
-  await post('restock', { sid, iid, qty })
+  await post('restock', { sid: ref.sid, iid: ref.iid, qty: qty })
   btn.disabled = false; btn.textContent = '确认补货'
   showToast('补货成功 ✓')
   closeSheet('add')
 }
 
 async function doAddNew() {
-  const name = document.getElementById('inp-name').value.trim()
-  const qty = parseFloat(document.getElementById('inp-nwqty').value) || 0
-  const unit = document.getElementById('inp-unit').value.trim() || '个'
-  const sid = document.getElementById('sel-sec').value
+  var name = document.getElementById('inp-name').value.trim()
+  var qty = parseFloat(document.getElementById('inp-nwqty').value) || 0
+  var unit = document.getElementById('inp-unit').value.trim() || '个'
+  var sid = document.getElementById('sel-sec').value
   if (!name) { showToast('请填写物品名称'); return }
-  const btn = document.getElementById('btn-nw')
+  var btn = document.getElementById('btn-nw')
   btn.disabled = true; btn.textContent = '保存中…'
-  await post('add_item', { sid, name, qty, unit })
+  await post('add_item', { sid: sid, name: name, qty: qty, unit: unit })
   btn.disabled = false; btn.textContent = '添加物品'
   showToast('添加成功 ✓')
   closeSheet('add')
@@ -167,21 +182,20 @@ async function doAddNew() {
 }
 
 function showToast(msg) {
-  const t = document.getElementById('toast')
+  var t = document.getElementById('toast')
   t.textContent = msg
   t.classList.add('show')
-  setTimeout(() => t.classList.remove('show'), 2000)
+  setTimeout(function() { t.classList.remove('show') }, 2000)
 }
 
-document.querySelectorAll('.overlay').forEach(el => {
-  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open') })
+document.querySelectorAll('.overlay').forEach(function(el) {
+  el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('open') })
 })
 
-// Pull-to-refresh on mobile
-let startY = 0
-document.addEventListener('touchstart', e => { startY = e.touches[0].clientY }, { passive: true })
-document.addEventListener('touchend', e => {
-  const dy = e.changedTouches[0].clientY - startY
+var startY = 0
+document.addEventListener('touchstart', function(e) { startY = e.touches[0].clientY }, { passive: true })
+document.addEventListener('touchend', function(e) {
+  var dy = e.changedTouches[0].clientY - startY
   if (dy > 80 && window.scrollY === 0) load()
 }, { passive: true })
 
