@@ -83,6 +83,7 @@ function render() {
     html += '<div>' +
       '<div class="sec-hdr" onclick="togSec(\'' + sec.id + '\')">' +
       '<div class="sec-title">' + sec.title + emptyBadge + '</div>' +
+      '<div class="btn-rename" onclick="event.stopPropagation();renameSection(\'' + sec.id + '\',\'' + sec.title + '\')" role="button">✏️</div>' +
       '<span class="' + arrowClass + '">▾</span>' +
       '</div>' + rows + '</div>'
   })
@@ -101,6 +102,12 @@ function delItem(sid, iid, name) {
 function togSec(sid) {
   collapsed[sid] = !collapsed[sid]
   render()
+}
+
+function renameSection(sid, currentTitle) {
+  var title = prompt('区域新名称：', currentTitle)
+  if (!title || title.trim() === currentTitle) return
+  post('rename_section', { sid: sid, title: title.trim() })
 }
 
 function openAdd() {
