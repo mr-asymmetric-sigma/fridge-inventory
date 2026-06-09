@@ -76,6 +76,13 @@ export default async function handler(req, res) {
       data.sections.push({ id: 's' + Date.now(), title, items: [] })
     }
 
+  if (action === 'rename_section') {
+  const { sid, title } = payload
+  const sec = data.sections.find(s => s.id === sid)
+  if (!sec) return res.status(404).json({ error: 'section not found' })
+  sec.title = title
+  }
+
     await redis.set('fridge_data', data)
     return res.json(data)
   }
