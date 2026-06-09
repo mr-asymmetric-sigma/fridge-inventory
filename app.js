@@ -122,8 +122,6 @@ function openAdd() {
     ss.innerHTML = state.sections.map(function(s) {
       return '<option value="' + s.id + '">' + s.title + '</option>'
     }).join('')
-    var ss2 = document.getElementById('sel-sec2')
-    ss2.innerHTML = ss.innerHTML
   }
   document.getElementById('ov-add').classList.add('open')
 }
