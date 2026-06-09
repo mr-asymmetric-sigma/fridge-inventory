@@ -1,4 +1,4 @@
-console.log('app.js loaded aaa')
+console.log('app.js loaded')
 
 let state = null
 let collapsed = {}
@@ -58,20 +58,25 @@ function render() {
     var rows = ''
     if (!isCol) {
       var rowsHtml = ''
-      sec.items.forEach(function(it) {
-        var emp = it.qty <= 0
-        var emptyLabel = emp ? '<div class="empty-label">已用完</div>' : ''
-        var empClass = emp ? 'item-row empty' : 'item-row'
-        var onclick = emp ? '' : 'onclick="dec(\'' + sec.id + '\',\'' + it.id + '\')"'
-        var btnClass = emp ? 'btn-minus disabled' : 'btn-minus'
-        rowsHtml += '<div class="' + empClass + '">' +
-          '<div class="item-info"><div class="item-name">' + it.name + '</div>' + emptyLabel + '</div>' +
-          '<div class="item-ctrl">' +
-          '<span class="qty-val">' + fq(it.qty) + '</span>' +
-          '<span class="qty-unit">' + it.unit + '</span>' +
-          '<div class="' + btnClass + '" ' + onclick + ' role="button" aria-label="减少' + it.name + '">−</div>' +
-          '</div></div>'
-      })
+      if (sec.items.length === 0) {
+        rowsHtml = '<div class="empty-tip" style="padding:24px;font-size:13px">暂无物品，点 ＋ 添加</div>'
+      } else {
+        sec.items.forEach(function(it) {
+          var emp = it.qty <= 0
+          var emptyLabel = emp ? '<div class="empty-label">已用完</div>' : ''
+          var empClass = emp ? 'item-row empty' : 'item-row'
+          var onclick = emp ? '' : 'onclick="dec(\'' + sec.id + '\',\'' + it.id + '\')"'
+          var btnClass = emp ? 'btn-minus disabled' : 'btn-minus'
+          rowsHtml += '<div class="' + empClass + '">' +
+            '<div class="item-info"><div class="item-name">' + it.name + '</div>' + emptyLabel + '</div>' +
+            '<div class="item-ctrl">' +
+            '<span class="qty-val">' + fq(it.qty) + '</span>' +
+            '<span class="qty-unit">' + it.unit + '</span>' +
+            '<div class="' + btnClass + '" ' + onclick + ' role="button" aria-label="减少' + it.name + '">−</div>' +
+            '<div class="btn-del" onclick="delItem(\'' + sec.id + '\',\'' + it.id + '\',\'' + it.name + '\')" role="button" aria-label="删除' + it.name + '">🗑</div>' +
+            '</div></div>'
+        })
+      }
       rows = '<div class="item-list">' + rowsHtml + '</div>'
     }
 
@@ -87,6 +92,11 @@ function render() {
 }
 
 function dec(sid, iid) { post('decrement', { sid: sid, iid: iid }) }
+
+function delItem(sid, iid, name) {
+  if (!confirm('确认删除「' + name + '」？')) return
+  post('delete_item', { sid: sid, iid: iid })
+}
 
 function togSec(sid) {
   collapsed[sid] = !collapsed[sid]
@@ -112,6 +122,8 @@ function openAdd() {
     ss.innerHTML = state.sections.map(function(s) {
       return '<option value="' + s.id + '">' + s.title + '</option>'
     }).join('')
+    var ss2 = document.getElementById('sel-sec2')
+    ss2.innerHTML = ss.innerHTML
   }
   document.getElementById('ov-add').classList.add('open')
 }
@@ -123,14 +135,15 @@ function openLog() {
   } else {
     var html = '<div class="log-list">'
     state.logs.slice(0, 60).forEach(function(l) {
-      var badge = l.type === 'add'
-        ? '<span class="log-badge add">+' + fq(l.added || l.qty) + '</span>'
-        : '<span class="log-badge use">取用</span>'
+      var badge
+      if (l.type === 'add') badge = '<span class="log-badge add">+' + fq(l.added || l.qty) + '</span>'
+      else if (l.type === 'delete') badge = '<span class="log-badge del">删除</span>'
+      else badge = '<span class="log-badge use">取用</span>'
       html += '<div class="log-row">' +
         '<span class="log-name">' + l.name + '</span>' +
         badge +
         '<div class="log-meta">' +
-        '<div class="log-remain">剩 ' + fq(l.qty) + '</div>' +
+        (l.type !== 'delete' ? '<div class="log-remain">剩 ' + fq(l.qty) + '</div>' : '') +
         '<div class="log-time">' + ft(l.time) + '</div>' +
         '</div></div>'
     })
@@ -146,8 +159,10 @@ function setMode(m) {
   addMode = m
   document.getElementById('tab-rs').className = 'tab' + (m === 'rs' ? ' act' : '')
   document.getElementById('tab-nw').className = 'tab' + (m === 'nw' ? ' act' : '')
+  document.getElementById('tab-sec').className = 'tab' + (m === 'sec' ? ' act' : '')
   document.getElementById('form-rs').style.display = m === 'rs' ? '' : 'none'
   document.getElementById('form-nw').style.display = m === 'nw' ? '' : 'none'
+  document.getElementById('form-sec').style.display = m === 'sec' ? '' : 'none'
 }
 
 async function doRestock() {
@@ -179,6 +194,18 @@ async function doAddNew() {
   document.getElementById('inp-name').value = ''
   document.getElementById('inp-nwqty').value = '1'
   document.getElementById('inp-unit').value = ''
+}
+
+async function doAddSection() {
+  var title = document.getElementById('inp-sec-title').value.trim()
+  if (!title) { showToast('请填写区域名称'); return }
+  var btn = document.getElementById('btn-sec')
+  btn.disabled = true; btn.textContent = '保存中…'
+  await post('add_section', { title: title })
+  btn.disabled = false; btn.textContent = '创建区域'
+  showToast('区域创建成功 ✓')
+  closeSheet('add')
+  document.getElementById('inp-sec-title').value = ''
 }
 
 function showToast(msg) {
